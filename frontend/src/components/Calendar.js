@@ -3,17 +3,23 @@ import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import jsPDF from 'jspdf';
-import { FaBeer, FaCoffee, FaApple } from 'react-icons/fa'; // Importa los iconos que deseas usar
-import Select from 'react-select'; // Importa react-select
+import { FaBeer, FaCoffee, FaApple } from 'react-icons/fa';
+import Select from 'react-select';
+import Obligation from './Obligation';
 
 const localizer = momentLocalizer(moment);
 
-// Lista de iconos disponibles
 const iconList = [
-  { label: 'Beer', value: <FaBeer /> },
-  { label: 'Coffee', value: <FaCoffee /> },
-  { label: 'Apple', value: <FaApple /> }
+  { label: 'FaBeer', value: 'FaBeer', icon: <FaBeer color="blue" /> },
+  { label: 'FaCoffee', value: 'FaCoffee', icon: <FaCoffee color="blue" /> },
+  { label: 'FaApple', value: 'FaApple', icon: <FaApple color="blue" /> }
 ];
+
+const iconMap = {
+  FaCoffee: FaCoffee,
+  FaApple: FaApple,
+  FaBeer: FaBeer,
+};
 
 function CustomCalendar() {
   const [obligations, setObligations] = useState([]);
@@ -21,7 +27,7 @@ function CustomCalendar() {
     name: '',
     starting_date: '',
     due_date: '',
-    icon: iconList[0].value // Icono por defecto
+    icon: iconList[0].value
   });
 
   const backendUrl = process.env.REACT_APP_BACKEND_URL;
@@ -32,8 +38,11 @@ function CustomCalendar() {
         const response = await fetch(`${backendUrl}/obligations`);
         if (response.ok) {
           const data = await response.json();
-          console.log(data);
-          setObligations(data || []); // Asegúrate de que obligations sea un array
+          const mappedObligations = data.map(obligation => ({
+            ...obligation,
+            Icon: iconMap[obligation.Icon] || obligation.Icon
+          }));
+          setObligations(mappedObligations || []);
         } else {
           console.error('Error fetching obligations:', response.statusText);
         }
@@ -45,27 +54,35 @@ function CustomCalendar() {
     fetchObligations();
   }, [backendUrl]);
 
-  const events = obligations.flatMap(obligation => [
-    {
-      title: `${obligation.name} (Inicio)`,
-      start: new Date(obligation.starting_date),
-      end: new Date(obligation.starting_date),
-      icon: obligation.icon
-    },
-    {
-      title: `${obligation.name} (Fin)`,
-      start: new Date(obligation.due_date),
-      end: new Date(obligation.due_date),
-      icon: obligation.icon
-    }
-  ]);
+  const groupByDate = (obligations) => {
+    const grouped = {};
+    obligations.forEach(obligation => {
+      const startDate = new Date(obligation.StartingDate).toDateString();
+      const endDate = new Date(obligation.DueDate).toDateString();
+
+      if (!grouped[startDate]) grouped[startDate] = [];
+      if (!grouped[endDate]) grouped[endDate] = [];
+
+      grouped[startDate].push({ ...obligation, type: 'start' });
+      grouped[endDate].push({ ...obligation, type: 'end' });
+    });
+    return grouped;
+  };
+
+  const groupedObligations = groupByDate(obligations);
+
+  const events = Object.keys(groupedObligations).map(date => ({
+    title: date,
+    start: new Date(date),
+    end: new Date(date),
+    obligations: groupedObligations[date]
+  }));
 
   const generatePDF = () => {
     const doc = new jsPDF();
     doc.text('Calendario de Obligaciones', 10, 10);
     obligations.forEach((obligation, index) => {
-      doc.text(`${obligation.name} - ${new Date(obligation.starting_date).toDateString()} to ${new Date(obligation.due_date).toDateString()}`, 10, 20 + (index * 10));
-      // No se puede agregar un componente React directamente al PDF, necesitarías una URL de imagen
+      doc.text(`${obligation.Name} - ${new Date(obligation.StartingDate).toDateString()} to ${new Date(obligation.DueDate).toDateString()}`, 10, 20 + (index * 10));
     });
     doc.save('calendario.pdf');
   };
@@ -82,11 +99,23 @@ function CustomCalendar() {
     };
   };
 
-  const EventComponent = ({ event }) => (
-    <div>
-      {event.icon}
-    </div>
-  );
+  const EventComponent = ({ event }) => {
+    const events_length = event.obligations.length
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
+        {event.obligations.map((obligation, index) => {
+          const IconComponent = iconMap[obligation.Icon.name];
+          return (
+            <div key={index} style={{ display: 'flex', alignItems: 'center', margin: '1px' }}>
+              {IconComponent ? <IconComponent color={obligation.type === 'start' ? 'green' : 'red'} size={40/(events_length**(1/2))} /> : null}
+            </div>
+          );
+        }
+       )
+       }
+      </div>
+    );
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -99,7 +128,7 @@ function CustomCalendar() {
 
   const handleAddObligation = async () => {
     try {
-      const response = await fetch(`${backendUrl}/obligations`, { // Ruta relativa al backend
+      const response = await fetch(`${backendUrl}/obligations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -126,7 +155,7 @@ function CustomCalendar() {
 
   const customSingleValue = ({ data }) => (
     <div style={{ display: 'flex', alignItems: 'center' }}>
-      {data.value}
+      {data.icon}
       <span style={{ marginLeft: 10 }}>{data.label}</span>
     </div>
   );
@@ -135,7 +164,7 @@ function CustomCalendar() {
     const { data, innerRef, innerProps } = props;
     return (
       <div ref={innerRef} {...innerProps} style={{ display: 'flex', alignItems: 'center' }}>
-        {data.value}
+        {data.icon}
         <span style={{ marginLeft: 10 }}>{data.label}</span>
       </div>
     );
@@ -161,10 +190,7 @@ function CustomCalendar() {
           <p>No hay obligaciones</p>
         ) : (
           obligations.map((obligation, index) => (
-            <div key={index} className="symbol-item">
-              {obligation.icon}
-              <span>{obligation.name}</span>
-            </div>
+            <Obligation key={index} obligation={obligation} />
           ))
         )}
       </div>
@@ -194,6 +220,8 @@ function CustomCalendar() {
           onChange={handleInputChange}
         />
         <Select
+          className="react-select-container"
+          classNamePrefix="react-select"
           options={iconList}
           value={iconList.find(icon => icon.value === newObligation.icon)}
           onChange={handleIconChange}

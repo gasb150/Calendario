@@ -87,3 +87,69 @@ input:focus, select:focus {
   display: inline-block;
   vertical-align: middle;
 }
+.react-select-container {
+  width: 100%;
+  margin: 10px 0;
+}
+.react-select__option {
+  display: flex;
+  align-items: center;
+}
+
+.react-select__option img {
+  margin-right: 10px;
+}
+.react-select__single-value {
+  display: flex;
+  align-items: center;
+}
+
+.react-select__single-value img {
+  margin-right: 10px;
+}
+
+.react-select__option {
+  display: flex;
+  align-items: center;
+}
+
+.react-select__option svg {
+  color: blue; /* Color azul para los iconos en el menú desplegable */
+  margin-right: 10px;
+}
+
+.react-select__single-value {
+  display: flex;
+  align-items: center;
+}
+
+.react-select__single-value svg {
+  color: blue; /* Color azul para el icono seleccionado */
+  margin-right: 10px;
+}
+
+.react-select__option {
+  display: flex;
+  align-items: center;
+}
+
+.react-select__option svg {
+  color: blue; /* Color azul para los iconos en el menú desplegable */
+  margin-right: 10px;
+  border: 1px solid blue; /* Borde azul alrededor de los iconos */
+  border-radius: 4px; /* Bordes redondeados */
+  padding: 2px; /* Espaciado interno */
+}
+
+.react-select__single-value {
+  display: flex;
+  align-items: center;
+}
+
+.react-select__single-value svg {
+  color: blue; /* Color azul para el icono seleccionado */
+  margin-right: 10px;
+  border: 1px solid blue; /* Borde azul alrededor del icono seleccionado */
+  border-radius: 4px; /* Bordes redondeados */
+  padding: 2px; /* Espaciado interno */
+}
