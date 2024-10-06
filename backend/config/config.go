@@ -20,9 +20,9 @@ type Config struct {
 
 // LoadConfig carga la configuración desde el archivo .env
 func LoadConfig() *Config {
-	err := godotenv.Load()
+	err := godotenv.Load("../.env")
 	if err != nil {
-		log.Fatalf("Error loading .env file")
+		log.Fatalf("Error loading .env file: %v", err)
 	}
 
 	config := &Config{

@@ -1,28 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import Obligation from './Obligation';
 import jsPDF from 'jspdf';
 
 const localizer = momentLocalizer(moment);
 
 function CustomCalendar() {
-  const [obligations, setObligations] = useState([
-    {
-      title: 'Pago de servicios',
-      start: new Date('2024-10-05'),
-      end: new Date('2024-10-31'),
-      icon: 'https://example.com/icon-green.png' // Icono verde para inicio y fin
-    },
-    {
-      title: 'Pago de impuestos',
-      start: new Date('2023-02-01'),
-      end: new Date('2023-02-28'),
-      icon: 'https://example.com/icon-green.png' // Icono verde para inicio y fin
-    }
-  ]);
-
+  const [obligations, setObligations] = useState([]);
   const [newObligation, setNewObligation] = useState({
     title: '',
     start: '',
@@ -30,17 +15,38 @@ function CustomCalendar() {
     icon: 'https://example.com/icon-green.png' // Icono verde por defecto
   });
 
+  const backendUrl = process.env.REACT_APP_BACKEND_URL;
+
+  useEffect(() => {
+    const fetchObligations = async () => {
+      try {
+        const response = await fetch(`${backendUrl}/obligations`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log(data);
+          setObligations(data || []); // Asegúrate de que obligations sea un array
+        } else {
+          console.error('Error fetching obligations:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Error fetching obligations:', error);
+      }
+    };
+
+    fetchObligations();
+  }, [backendUrl]);
+
   const events = obligations.flatMap(obligation => [
     {
       title: `${obligation.title} (Inicio)`,
-      start: obligation.start,
-      end: obligation.start,
+      start: new Date(obligation.start),
+      end: new Date(obligation.start),
       icon: obligation.icon
     },
     {
       title: `${obligation.title} (Fin)`,
-      start: obligation.end,
-      end: obligation.end,
+      start: new Date(obligation.end),
+      end: new Date(obligation.end),
       icon: obligation.icon
     }
   ]);
@@ -49,7 +55,7 @@ function CustomCalendar() {
     const doc = new jsPDF();
     doc.text('Calendario de Obligaciones', 10, 10);
     obligations.forEach((obligation, index) => {
-      doc.text(`${obligation.title} - ${obligation.start.toDateString()} to ${obligation.end.toDateString()}`, 10, 20 + (index * 10));
+      doc.text(`${obligation.title} - ${new Date(obligation.start).toDateString()} to ${new Date(obligation.end).toDateString()}`, 10, 20 + (index * 10));
       doc.addImage(obligation.icon, 'PNG', 180, 15 + (index * 10), 10, 10);
     });
     doc.save('calendario.pdf');
@@ -80,7 +86,7 @@ function CustomCalendar() {
 
   const handleAddObligation = async () => {
     try {
-      const response = await fetch('https://your-backend-api.com/obligations', {
+      const response = await fetch(`${backendUrl}/obligations`, { // Ruta relativa al backend
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -121,12 +127,16 @@ function CustomCalendar() {
 
       <div className="symbol-dictionary">
         <h3>Diccionario de Símbolos</h3>
-        {obligations.map((obligation, index) => (
-          <div key={index} className="symbol-item">
-            <img src={obligation.icon} alt={obligation.title} style={{ width: '20px', height: '20px' }} />
-            <span>{obligation.title}</span>
-          </div>
-        ))}
+        {obligations.length === 0 ? (
+          <p>No hay obligaciones</p>
+        ) : (
+          obligations.map((obligation, index) => (
+            <div key={index} className="symbol-item">
+              <img src={obligation.icon} alt={obligation.title} style={{ width: '20px', height: '20px' }} />
+              <span>{obligation.title}</span>
+            </div>
+          ))
+        )}
       </div>
       <button onClick={generatePDF}>Generar PDF</button>
 
