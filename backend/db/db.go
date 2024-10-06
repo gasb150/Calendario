@@ -52,11 +52,19 @@ func createDB(cfg *config.Config) {
 	}
 	defer db.Close()
 
-	// Crear la base de datos si no existe
-	_, err = db.Exec(fmt.Sprintf("CREATE DATABASE %s", cfg.DBName))
-	if err != nil && err.Error() != fmt.Sprintf("pq: database \"%s\" already exists", cfg.DBName) {
-		log.Fatalf("Failed to create database: %v", err)
+	// Verificar si la base de datos existe
+	var exists bool
+	query := fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = '%s')", cfg.DBName)
+	err = db.QueryRow(query).Scan(&exists)
+	if err != nil {
+		log.Fatalf("Failed to check if database exists: %v", err)
 	}
 
-	log.Println("Database created or already exists")
+	// Crear la base de datos si no existe
+	if !exists {
+		_, err = db.Exec(fmt.Sprintf("CREATE DATABASE %s", cfg.DBName))
+		if err != nil {
+			log.Fatalf("Failed to create database: %v", err)
+		}
+	}
 }
