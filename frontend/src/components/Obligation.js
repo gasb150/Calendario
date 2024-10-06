@@ -5,7 +5,7 @@ function Obligation({ obligation }) {
     <div>
       <p>{obligation.name}</p>
       <img src={obligation.icon} alt={obligation.name} />
-      <p>Fecha de facturacion: {obligation.startingDate}</p>
+      <p>Fecha de facturación: {obligation.startingDate}</p>
       <p>Fecha de vencimiento: {obligation.dueDate}</p>
     </div>
   );
