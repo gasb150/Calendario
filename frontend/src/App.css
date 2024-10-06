@@ -19,3 +19,45 @@ button {
   font-size: 16px;
   cursor: pointer;
 }
+
+.rbc-event {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rbc-event img {
+  margin-right: 5px;
+}
+
+.symbol-dictionary {
+  margin-top: 20px;
+  text-align: left;
+}
+
+.symbol-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.symbol-item img {
+  margin-right: 10px;
+}
+
+.add-obligation-form {
+  margin-top: 20px;
+}
+
+.add-obligation-form input {
+  margin: 5px;
+  padding: 10px;
+  font-size: 16px;
+}
+
+.add-obligation-form button {
+  margin-top: 10px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+}
