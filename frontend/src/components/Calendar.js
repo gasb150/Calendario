@@ -1,58 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import jsPDF from 'jspdf';
-import { FaBeer, FaCoffee, FaApple } from 'react-icons/fa';
+import html2canvas from 'html2canvas';
 import Select from 'react-select';
-import Obligation from './Obligation';
+import { Obligation, useObligations, iconList, iconMap } from './Obligation';
 
 const localizer = momentLocalizer(moment);
 
-const iconList = [
-  { label: 'FaBeer', value: 'FaBeer', icon: <FaBeer color="blue" /> },
-  { label: 'FaCoffee', value: 'FaCoffee', icon: <FaCoffee color="blue" /> },
-  { label: 'FaApple', value: 'FaApple', icon: <FaApple color="blue" /> }
-];
-
-const iconMap = {
-  FaCoffee: FaCoffee,
-  FaApple: FaApple,
-  FaBeer: FaBeer,
-};
-
 function CustomCalendar() {
-  const [obligations, setObligations] = useState([]);
-  const [newObligation, setNewObligation] = useState({
-    name: '',
-    starting_date: '',
-    due_date: '',
-    icon: iconList[0].value
-  });
-
   const backendUrl = process.env.REACT_APP_BACKEND_URL;
+  const {
+    obligations,
+    newObligation,
+    handleInputChange,
+    handleIconChange,
+    handleAddObligation
+  } = useObligations(backendUrl);
 
-  useEffect(() => {
-    const fetchObligations = async () => {
-      try {
-        const response = await fetch(`${backendUrl}/obligations`);
-        if (response.ok) {
-          const data = await response.json();
-          const mappedObligations = data.map(obligation => ({
-            ...obligation,
-            Icon: iconMap[obligation.Icon] || obligation.Icon
-          }));
-          setObligations(mappedObligations || []);
-        } else {
-          console.error('Error fetching obligations:', response.statusText);
-        }
-      } catch (error) {
-        console.error('Error fetching obligations:', error);
-      }
-    };
-
-    fetchObligations();
-  }, [backendUrl]);
+  const [isFormVisible, setIsFormVisible] = useState(false);
+  const [showToolbar, setShowToolbar] = useState(true);
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   const groupByDate = (obligations) => {
     const grouped = {};
@@ -79,12 +48,44 @@ function CustomCalendar() {
   }));
 
   const generatePDF = () => {
-    const doc = new jsPDF();
-    doc.text('Calendario de Obligaciones', 10, 10);
-    obligations.forEach((obligation, index) => {
-      doc.text(`${obligation.Name} - ${new Date(obligation.StartingDate).toDateString()} to ${new Date(obligation.DueDate).toDateString()}`, 10, 20 + (index * 10));
-    });
-    doc.save('calendario.pdf');
+    setShowToolbar(false); // Ocultar la barra de herramientas
+
+    setTimeout(() => {
+      const calendarElement = document.querySelector('.rbc-calendar');
+      const dictionaryElement = document.querySelector('.symbol-dictionary');
+
+      Promise.all([
+        html2canvas(calendarElement),
+        html2canvas(dictionaryElement)
+      ]).then(canvases => {
+        const calendarCanvas = canvases[0];
+        const dictionaryCanvas = canvases[1];
+
+        const calendarImgData = calendarCanvas.toDataURL('image/png');
+        const dictionaryImgData = dictionaryCanvas.toDataURL('image/png');
+
+        const doc = new jsPDF('landscape', 'pt', 'letter');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        const imgWidth = pageWidth - 60; // Margen de 30 puntos a cada lado
+        const totalHeight = calendarCanvas.height + dictionaryCanvas.height;
+        const scaleFactor = (pageHeight - 60) / totalHeight; // Ajustar para que quepa en una sola página
+
+        const calendarImgHeight = calendarCanvas.height * scaleFactor;
+        const dictionaryImgHeight = dictionaryCanvas.height * scaleFactor;
+
+        const monthTitle = moment(currentDate).format('MMMM YYYY');
+
+        doc.text(`Calendario de Obligaciones - ${monthTitle}`, 15, 15);
+        doc.addImage(calendarImgData, 'PNG', 15, 30, imgWidth, calendarImgHeight);
+        doc.addImage(dictionaryImgData, 'PNG', 15, 40 + calendarImgHeight, imgWidth, dictionaryImgHeight);
+
+        doc.save('calendario.pdf');
+
+        setShowToolbar(true); // Mostrar la barra de herramientas nuevamente
+      });
+    }, 1000); // Esperar un segundo para asegurarse de que la barra de herramientas esté oculta
   };
 
   const eventPropGetter = () => {
@@ -100,78 +101,61 @@ function CustomCalendar() {
   };
 
   const EventComponent = ({ event }) => {
-    const events_length = event.obligations.length
+    const events_length = event.obligations.length;
     return (
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
         {event.obligations.map((obligation, index) => {
           const IconComponent = iconMap[obligation.Icon.name];
           return (
             <div key={index} style={{ display: 'flex', alignItems: 'center', margin: '1px' }}>
-              {IconComponent ? <IconComponent color={obligation.type === 'start' ? 'green' : 'red'} size={40/(events_length**(1/2))} /> : null}
+              {IconComponent ? <IconComponent color={obligation.type === 'start' ? 'green' : 'red'} size={40 / (events_length ** (1 / 2))} /> : null}
             </div>
           );
-        }
-       )
-       }
+        })}
       </div>
     );
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewObligation({ ...newObligation, [name]: value });
-  };
+  const CustomToolbar = (toolbar) => {
+    const goToBack = () => {
+      const mDate = moment(toolbar.date);
+      const newDate = mDate.subtract(1, 'month').toDate();
+      setCurrentDate(newDate);
+      toolbar.onNavigate('PREV');
+    };
 
-  const handleIconChange = (selectedOption) => {
-    setNewObligation({ ...newObligation, icon: selectedOption.value });
-  };
+    const goToNext = () => {
+      const mDate = moment(toolbar.date);
+      const newDate = mDate.add(1, 'month').toDate();
+      setCurrentDate(newDate);
+      toolbar.onNavigate('NEXT');
+    };
 
-  const handleAddObligation = async () => {
-    try {
-      const response = await fetch(`${backendUrl}/obligations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(newObligation)
-      });
+    const goToCurrent = () => {
+      const now = new Date();
+      setCurrentDate(now);
+      toolbar.onNavigate('TODAY');
+    };
 
-      if (response.ok) {
-        const addedObligation = await response.json();
-        setObligations([...obligations, addedObligation]);
-        setNewObligation({
-          name: '',
-          starting_date: '',
-          due_date: '',
-          icon: iconList[0].value
-        });
-      } else {
-        console.error('Error adding obligation:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error adding obligation:', error);
-    }
-  };
+    const label = () => {
+      const date = moment(toolbar.date);
+      return (
+        <span>{date.format('MMMM YYYY')}</span>
+      );
+    };
 
-  const customSingleValue = ({ data }) => (
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      {data.icon}
-      <span style={{ marginLeft: 10 }}>{data.label}</span>
-    </div>
-  );
-
-  const customOption = (props) => {
-    const { data, innerRef, innerProps } = props;
     return (
-      <div ref={innerRef} {...innerProps} style={{ display: 'flex', alignItems: 'center' }}>
-        {data.icon}
-        <span style={{ marginLeft: 10 }}>{data.label}</span>
+      <div className="toolbar-container">
+        <button onClick={goToBack}>Back</button>
+        <button onClick={goToCurrent}>Today</button>
+        <button onClick={goToNext}>Next</button>
+        <div className="label">{label()}</div>
       </div>
     );
   };
 
   return (
-    <div>
+    <div style={{ backgroundColor: '#f0f0f0', padding: '20px' }}>
       <Calendar
         localizer={localizer}
         events={events}
@@ -180,7 +164,8 @@ function CustomCalendar() {
         style={{ height: 500 }}
         eventPropGetter={eventPropGetter}
         components={{
-          event: EventComponent
+          event: EventComponent,
+          toolbar: showToolbar ? CustomToolbar : () => <div /> // Condicionalmente mostrar la barra de herramientas
         }}
       />
 
@@ -189,46 +174,88 @@ function CustomCalendar() {
         {obligations.length === 0 ? (
           <p>No hay obligaciones</p>
         ) : (
-          obligations.map((obligation, index) => (
-            <Obligation key={index} obligation={obligation} />
-          ))
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {obligations.map((obligation, index) => (
+                  <th key={index} style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 'clamp(10px, 2vw, 20px)' }}>
+                      {iconMap[obligation.Icon.name] ? React.createElement(iconMap[obligation.Icon.name], { size: '2em' }) : null}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                {obligations.map((obligation, index) => (
+                  <td key={index} style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 'clamp(10px, 2vw, 16px)' }}>
+                      {obligation.Name}
+                    </div>
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
         )}
       </div>
       <button onClick={generatePDF}>Generar PDF</button>
 
-      <div className="add-obligation-form">
-        <h3>Añadir Obligación</h3>
-        <input
-          type="text"
-          name="name"
-          placeholder="Título"
-          value={newObligation.name}
-          onChange={handleInputChange}
-        />
-        <input
-          type="date"
-          name="starting_date"
-          placeholder="Fecha de inicio"
-          value={newObligation.starting_date}
-          onChange={handleInputChange}
-        />
-        <input
-          type="date"
-          name="due_date"
-          placeholder="Fecha de fin"
-          value={newObligation.due_date}
-          onChange={handleInputChange}
-        />
-        <Select
-          className="react-select-container"
-          classNamePrefix="react-select"
-          options={iconList}
-          value={iconList.find(icon => icon.value === newObligation.icon)}
-          onChange={handleIconChange}
-          components={{ SingleValue: customSingleValue, Option: customOption }}
-        />
-        <button onClick={handleAddObligation}>Añadir Obligación</button>
-      </div>
+      <button onClick={() => setIsFormVisible(!isFormVisible)}>
+        {isFormVisible ? 'Ocultar Formulario' : 'Añadir Obligación'}
+      </button>
+
+      {isFormVisible && (
+        <div className="add-obligation-form">
+          <h3>Añadir Obligación</h3>
+          <input
+            type="text"
+            name="name"
+            placeholder="Título"
+            value={newObligation.name}
+            onChange={handleInputChange}
+          />
+          <input
+            type="date"
+            name="starting_date"
+            placeholder="Fecha de inicio"
+            value={newObligation.starting_date}
+            onChange={handleInputChange}
+          />
+          <input
+            type="date"
+            name="due_date"
+            placeholder="Fecha de fin"
+            value={newObligation.due_date}
+            onChange={handleInputChange}
+          />
+          <Select
+            className="react-select-container"
+            classNamePrefix="react-select"
+            options={iconList}
+            value={iconList.find(icon => icon.value === newObligation.icon)}
+            onChange={handleIconChange}
+            components={{ SingleValue: ({ data }) => (
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                {data.icon}
+                <span style={{ marginLeft: 10 }}>{data.label}</span>
+              </div>
+            ), Option: (props) => {
+              const { data, innerRef, innerProps } = props;
+              return (
+                <div ref={innerRef} {...innerProps} style={{ display: 'flex', alignItems: 'center' }}>
+                  {data.icon}
+                  <span style={{ marginLeft: 10 }}>{data.label}</span>
+                </div>
+              );
+            }}}
+          />
+          <button onClick={handleAddObligation}>Añadir Obligación</button>
+        </div>
+      )}
+
+
     </div>
   );
 }
