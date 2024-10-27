@@ -38,7 +38,7 @@ func GetObligations() ([]models.Obligation, error) {
 
 // GetCalendar devuelve una lista de días del calendario
 func GetCalendar() ([]models.Calendar, error) {
-	holidays := GetHolidays()
+	holidays, _ := GetHolidays()
 	calendar := []models.Calendar{}
 	holidayMap := make(map[time.Time]string)
 	for _, holiday := range holidays {
@@ -68,6 +68,7 @@ func GetCalendar() ([]models.Calendar, error) {
 			HolidayName: holidayName,
 			Obligations: dailyObligations,
 		})
+
 	}
 
 	return calendar, nil

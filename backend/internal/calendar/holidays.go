@@ -27,21 +27,21 @@ type CalendarificResponse struct {
 }
 
 // GetHolidays devuelve una lista de festivos en Colombia usando la API de Calendarific
-func GetHolidays() []Holiday {
+func GetHolidays() ([]Holiday, error) {
 	apiKey := config.LoadConfig().CalendarificAPIKey
 	url := fmt.Sprintf("https://calendarific.com/api/v2/holidays?&api_key=%s&country=CO&year=%d", apiKey, time.Now().Year())
 
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Println("Error fetching holidays:", err)
-		return []Holiday{}
+		return []Holiday{}, err
 	}
 	defer resp.Body.Close()
 
 	var apiResponse CalendarificResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResponse); err != nil {
 		fmt.Println("Error decoding response:", err)
-		return []Holiday{}
+		return []Holiday{}, err
 	}
 
 	var holidays []Holiday
@@ -50,5 +50,5 @@ func GetHolidays() []Holiday {
 		holidays = append(holidays, Holiday{Name: h.Name, Date: date})
 	}
 
-	return holidays
+	return holidays, nil
 }

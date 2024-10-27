@@ -9,6 +9,7 @@ import (
 func SetupRoutes() *mux.Router {
 	router := mux.NewRouter()
 	router.HandleFunc("/calendar", handlers.GetCalendarHandler).Methods("GET")
+	router.HandleFunc("/holidays", handlers.GetHolidaysHandler).Methods("GET")
 	router.HandleFunc("/obligations", handlers.GetObligationsHandler).Methods("GET")
 	router.HandleFunc("/obligations", handlers.InsertObligationHandler).Methods("POST")
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -6,10 +6,12 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import Select from 'react-select';
 import { Obligation, useObligations, iconList, iconMap } from './Obligation';
+import useHolidays from './Holidays/Holidays';
+import '../App.css'; // Asegúrate de importar el archivo CSS
 
 const localizer = momentLocalizer(moment);
 
-function CustomCalendar() {
+const CustomCalendar = () => {
   const backendUrl = process.env.REACT_APP_BACKEND_URL;
   const {
     obligations,
@@ -18,6 +20,8 @@ function CustomCalendar() {
     handleIconChange,
     handleAddObligation
   } = useObligations(backendUrl);
+
+  const { holidays } = useHolidays(backendUrl);
 
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [showToolbar, setShowToolbar] = useState(true);
@@ -46,6 +50,19 @@ function CustomCalendar() {
     end: new Date(date),
     obligations: groupedObligations[date]
   }));
+
+  // Añadir días festivos como eventos
+  const holidayEvents = holidays.map(holiday => ({
+    title: holiday.HolidayName,
+    start: new Date(holiday.Date),
+    end: new Date(holiday.Date),
+    allDay: true,
+    holiday: true
+  }));
+
+  console.log(holidays)
+
+  const allEvents = [...events, ...holidayEvents];
 
   const generatePDF = () => {
     setShowToolbar(false); // Ocultar la barra de herramientas
@@ -100,6 +117,16 @@ function CustomCalendar() {
     };
   };
 
+  const dayPropGetter = (date) => {
+    const isHoliday = holidays.some(holiday => new Date(holiday.Date).toDateString() === date.toDateString());
+    if (isHoliday) {
+      return {
+        className: 'holiday-day'
+      };
+    }
+    return {};
+  };
+
   const EventComponent = ({ event }) => {
     const events_length = event.obligations.length;
     return (
@@ -144,11 +171,18 @@ function CustomCalendar() {
       );
     };
 
+    const setView = (view) => {
+      toolbar.onView(view);
+    };
+
     return (
       <div className="toolbar-container">
         <button onClick={goToBack}>Back</button>
         <button onClick={goToCurrent}>Today</button>
         <button onClick={goToNext}>Next</button>
+        <button onClick={() => setView('month')}>Month</button>
+        <button onClick={() => setView('week')}>Week</button>
+        <button onClick={() => setView('day')}>Day</button>
         <div className="label">{label()}</div>
       </div>
     );
@@ -158,11 +192,12 @@ function CustomCalendar() {
     <div style={{ backgroundColor: '#f0f0f0', padding: '20px' }}>
       <Calendar
         localizer={localizer}
-        events={events}
+        events={allEvents}
         startAccessor="start"
         endAccessor="end"
         style={{ height: 500 }}
         eventPropGetter={eventPropGetter}
+        dayPropGetter={dayPropGetter}
         components={{
           event: EventComponent,
           toolbar: showToolbar ? CustomToolbar : () => <div /> // Condicionalmente mostrar la barra de herramientas
@@ -254,10 +289,8 @@ function CustomCalendar() {
           <button onClick={handleAddObligation}>Añadir Obligación</button>
         </div>
       )}
-
-
     </div>
   );
-}
+};
 
 export default CustomCalendar;

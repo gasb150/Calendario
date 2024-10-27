@@ -1,32 +1,28 @@
-import React, { useEffect, useState } from 'react';
-import CustomCalendar from './CustomCalendar';
+import { useEffect, useState } from 'react';
 
-const Holidays = () => {
+function useHolidays(backendUrl) {
   const [holidays, setHolidays] = useState([]);
 
   useEffect(() => {
-    fetch('/calendar')
-      .then(response => response.json())
-      .then(data => {
-        const holidayData = data.filter(day => day.Holiday);
-        setHolidays(holidayData);
-      })
-      .catch(error => console.error('Error fetching holidays:', error));
-  }, []);
+    const fetchHolidays = async () => {
+      try {
+        const response = await fetch(`${backendUrl}/holidays`);
+        if (response.ok) {
+          const data = await response.json();
 
-  return (
-    <div>
-      <h2>Días Festivos</h2>
-      <ul>
-        {holidays.map((holiday, index) => (
-          <li key={index}>
-            {holiday.Date}: {holiday.HolidayName}
-          </li>
-        ))}
-      </ul>
-      <CustomCalendar holidays={holidays} />
-    </div>
-  );
-};
+          const holidayData = data.filter(day => day.Date);
+          setHolidays(holidayData);
+        } else {
+          console.error('Error fetching holidays:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Error fetching holidays:', error);
+      }
+    };
+    fetchHolidays();
+  }, [backendUrl]);
 
-export default Holidays;
+  return { holidays };
+}
+
+export default useHolidays;

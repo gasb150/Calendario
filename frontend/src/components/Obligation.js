@@ -45,6 +45,7 @@ function useObligations(backendUrl) {
         const response = await fetch(`${backendUrl}/obligations`);
         if (response.ok) {
           const data = await response.json();
+          console.log(data);
           const mappedObligations = data.map(obligation => ({
             ...obligation,
             Icon: iconMap[obligation.Icon] || obligation.Icon
